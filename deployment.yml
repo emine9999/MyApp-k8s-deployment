@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: morocco-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: morocco
+  template:
+    metadata:
+      labels:
+        app: morocco
+    spec:
+      containers:
+      - name: morocco
+        image: codewithamine/morocco
+        ports:
+        - containerPort: 8080
