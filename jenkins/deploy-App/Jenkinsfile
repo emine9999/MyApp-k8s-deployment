@@ -1,0 +1,35 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'DEPLOYMENT', defaultValue: 'default-deployment', description: 'Name of the deployment to apply')
+    }
+
+    stages {
+        stage('Deploy App') {
+            steps {
+                script {
+                    sh """
+                    cd minikube
+                    kubectl -n production apply -f deployment.yml
+                    kubectl -n production apply -f services.yml
+                    """
+                    sleep(time: 120, unit: "SECONDS")  // Wait for resources to be applied
+                }
+            }
+        }
+
+        stage('Get App URL') {
+            steps {
+                script {
+                    // Get the service URL from Minikube
+                    def serviceURL = sh(script: 'minikube service morocco-service --url', returnStdout: true).trim()
+
+                    // Print the service URL
+                    echo "The application is accessible at: ${serviceURL}"
+
+                }
+            }
+        }
+    }
+}

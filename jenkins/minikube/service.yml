@@ -5,8 +5,9 @@ metadata:
 spec:
   selector:
     app: morocco
-  type: LoadBalancer
+  type: NodePort
   ports:
     - protocol: TCP
       port: 80
       targetPort: 8080
+      nodePort: 30007
