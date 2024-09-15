@@ -2,18 +2,10 @@ pipeline {
     agent any
     
     stages {
-        stage('Create Namespace') {
-            steps {
-                script {
-                    // Create the production namespace
-                    sh 'kubectl create namespace production || echo "Namespace already exists"'
-                }
-            }
-        }
-
         stage('Deploy App') {
             steps {
                 script {
+                    // Deploy the app to the default namespace
                     build job: 'DEPLOY_APP', parameters: [
                         [$class: 'StringParameterValue', name: 'DEPLOYMENT', value: 'app']
                     ]
