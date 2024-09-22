@@ -26,8 +26,9 @@ pipeline {
                 script {
                     // Apply the Kubernetes configurations
                     sh """
-                    kubectl apply -f deployment.yml --validate=false
-                    kubectl apply -f services.yml --validate=false
+                    cd minikube
+                    kubectl apply -f deployment.yml 
+                    kubectl apply -f services.yml 
                     """
                     sleep(time: 120, unit: "SECONDS")  // Wait for resources to be applied
                 }
