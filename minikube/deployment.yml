@@ -16,4 +16,4 @@ spec:
       - name: morocco
         image: codewithamine/morocco
         ports:
-        - containerPort: 8080
+        - containerPort: 80  # Changed to match the exposed port in your Dockerfile
