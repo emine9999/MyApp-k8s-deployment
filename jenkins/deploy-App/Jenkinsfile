@@ -11,8 +11,8 @@ pipeline {
                 script {
                     sh """
                     cd minikube
-                    kubectl -n production apply -f deployment.yml
-                    kubectl -n production apply -f services.yml
+                    kubectl apply -f deployment.yml
+                    kubectl apply -f services.yml
                     """
                     sleep(time: 120, unit: "SECONDS")  // Wait for resources to be applied
                 }
@@ -27,7 +27,6 @@ pipeline {
 
                     // Print the service URL
                     echo "The application is accessible at: ${serviceURL}"
-
                 }
             }
         }
