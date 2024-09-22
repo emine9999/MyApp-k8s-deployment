@@ -9,10 +9,12 @@ pipeline {
         stage('Deploy App') {
             steps {
                 script {
+                    // Check Minikube status
+                    sh 'minikube status'
+
                     sh """
-                    cd minikube
-                    kubectl apply -f deployment.yml
-                    kubectl apply -f services.yml
+                    kubectl apply -f deployment.yml --validate=false
+                    kubectl apply -f services.yml --validate=false
                     """
                     sleep(time: 120, unit: "SECONDS")  // Wait for resources to be applied
                 }
