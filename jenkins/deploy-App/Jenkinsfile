@@ -28,7 +28,7 @@ pipeline {
                     sh """
                     cd minikube
                     kubectl apply -f deployment.yml 
-                    kubectl apply -f services.yml 
+                    kubectl apply -f service.yml 
                     """
                     sleep(time: 120, unit: "SECONDS")  // Wait for resources to be applied
                 }
