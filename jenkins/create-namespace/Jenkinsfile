@@ -1,14 +1,20 @@
-stage('Start Minikube') {
-  steps {
-    script {
-      def minikubeStatus = sh(script: 'minikube status', returnStatus: true)
-      if (minikubeStatus != 0) {
-        echo "Minikube is not running. Starting Minikube..."
-        sh 'minikube delete --all'
-        sh 'minikube start --driver=docker --kubernetes-version=v1.27.3 --cpus 2 --memory 4096'
-      } else {
-        echo "Minikube is already running."
-      }
+pipeline {
+    agent any
+    stages {
+        stage('Start Minikube') {
+            steps {
+                script {
+                    def minikubeStatus = sh(script: 'minikube status', returnStatus: true)
+                    if (minikubeStatus != 0) {
+                        echo "Minikube is not running. Starting Minikube..."
+                        sh 'minikube delete --all'
+                        sh 'minikube start --driver=docker --kubernetes-version=v1.27.3 --cpus 2 --memory 4096'
+                    } else {
+                        echo "Minikube is already running."
+                    }
+                }
+            }
+        }
+        // Other stages can be added here...
     }
-  }
 }
