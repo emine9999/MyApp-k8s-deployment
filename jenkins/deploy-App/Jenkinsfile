@@ -6,12 +6,25 @@ pipeline {
     }
 
     stages {
-        stage('Deploy App') {
+        stage('Check Minikube Status') {
             steps {
                 script {
                     // Check Minikube status
-                    sh 'minikube status'
+                    def status = sh(script: 'minikube status', returnStatus: true)
+                    if (status != 0) {
+                        echo "Minikube is not running. Starting Minikube..."
+                        sh 'minikube start'
+                    } else {
+                        echo "Minikube is running."
+                    }
+                }
+            }
+        }
 
+        stage('Deploy App') {
+            steps {
+                script {
+                    // Apply the Kubernetes configurations
                     sh """
                     kubectl apply -f deployment.yml --validate=false
                     kubectl apply -f services.yml --validate=false
