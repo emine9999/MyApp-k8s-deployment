@@ -1,16 +1,14 @@
-pipeline {
-    agent any
-    
-    stages {
-        stage('Deploy App') {
-            steps {
-                script {
-                    // Deploy the app to the default namespace
-                    build job: 'DEPLOY_APP', parameters: [
-                        [$class: 'StringParameterValue', name: 'DEPLOYMENT', value: 'app']
-                    ]
-                }
-            }
-        }
+stage('Start Minikube') {
+  steps {
+    script {
+      def minikubeStatus = sh(script: 'minikube status', returnStatus: true)
+      if (minikubeStatus != 0) {
+        echo "Minikube is not running. Starting Minikube..."
+        sh 'minikube delete --all'
+        sh 'minikube start --driver=docker --kubernetes-version=v1.27.3 --cpus 2 --memory 4096'
+      } else {
+        echo "Minikube is already running."
+      }
     }
+  }
 }
