@@ -16,7 +16,7 @@ pipeline {
                     kubectl apply -f deployment.yml 
                     kubectl apply -f service.yml 
                     """
-                    sleep(time: 50, unit: "SECONDS")  // Wait for resources to be applied
+                    sleep(time: 10, unit: "SECONDS")  // Wait for resources to be applied
                 }
             }
         }
