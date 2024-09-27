@@ -5,18 +5,38 @@ pipeline {
         string(name: 'DEPLOYMENT', defaultValue: 'default-deployment', description: 'Name of the deployment to apply')
     }
 
+    environment {
+        SONARQUBE_URL = "http://128.110.218.109:9000"
+        SONARQUBE_TOKEN = credentials('sonar_token') // Use a credentials ID instead of hardcoding the token
+    }
+
     stages {
+        stage('Debug') {
+            steps {
+                script {
+                    echo "SONARQUBE_URL: ${SONARQUBE_URL}"
+                    echo "Java version:"
+                    sh 'java -version'
+                    sh "curl -X GET ${SONARQUBE_URL}/api/system/status"
+                }
+            }
+        }
+
         stage('SonarQube Analysis') {
             steps {
                 script {
                     // Perform SonarQube analysis
-                    sh """
-                    sonar-scanner \
-                      -Dsonar.projectKey=test-app \
-                      -Dsonar.sources=. \
-                      -Dsonar.host.url=http://128.110.218.109:9000 \
-                      -Dsonar.login=4d2523ba64a229d679a3d65c604394b503a76d2b 
-                    """
+                    def scannerHome = tool 'sonar-scanner' // Make sure the sonar-scanner tool is installed in Jenkins
+                    withSonarQubeEnv('sonar-server') { // Ensure this matches your SonarQube server configuration in Jenkins
+                        sh """
+                        ${scannerHome}/bin/sonar-scanner \
+                          -Dsonar.projectKey=test-app \
+                          -Dsonar.sources=. \
+                          -Dsonar.host.url=${SONARQUBE_URL} \
+                          -Dsonar.token=${SONARQUBE_TOKEN} \
+                          -Dsonar.inclusions=**/*.html,**/*.css
+                        """
+                    }
                 }
             }
         }
@@ -45,6 +65,12 @@ pipeline {
                     echo "The application is accessible at: ${serviceURL}"
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            echo 'Cleaning up...'
         }
     }
 }
