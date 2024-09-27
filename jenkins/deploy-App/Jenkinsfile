@@ -6,20 +6,6 @@ pipeline {
     }
 
     stages {
-        stage('Check Minikube Status') {
-            steps {
-                script {
-                    // Check Minikube status
-                    def status = sh(script: 'minikube status', returnStatus: true)
-                    if (status != 0) {
-                        echo "Minikube is not running. Starting Minikube..."
-                        sh 'minikube start'
-                    } else {
-                        echo "Minikube is running."
-                    }
-                }
-            }
-        }
 
         stage('Deploy App') {
             steps {
