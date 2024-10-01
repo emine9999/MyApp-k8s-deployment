@@ -1,20 +1,50 @@
 pipeline {
-    agent any
+    agent any 
+
     stages {
-        stage('Start Minikube') {
+        stage('Checkout') {
             steps {
                 script {
-                    def minikubeStatus = sh(script: 'minikube status', returnStatus: true)
-                    if (minikubeStatus != 0) {
-                        echo "Minikube is not running. Starting Minikube..."
-                        sh 'minikube delete --all'
-                        sh 'minikube start --driver=docker --kubernetes-version=v1.27.3 --cpus 2 --memory 4096'
-                    } else {
-                        echo "Minikube is already running."
-                    }
+                    // Checkout code from Git repository
+                    git branch: 'main', url: 'https://github.com/yourusername/your-repo.git'
                 }
             }
         }
-        // Other stages can be added here...
+
+        stage('Build') {
+            steps {
+                // Example build step (e.g., a shell command)
+                echo 'Building the project...'
+                // Add your build commands here
+                sh 'make build'  // Replace this with your build command
+            }
+        }
+
+        stage('Test') {
+            steps {
+                // Example test step
+                echo 'Running tests...'
+                // Add your test commands here
+                sh 'make test'  // Replace this with your test command
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                // Example deployment step
+                echo 'Deploying the project...'
+                // Add your deployment commands here
+                sh 'make deploy'  // Replace this with your deployment command
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
     }
 }
