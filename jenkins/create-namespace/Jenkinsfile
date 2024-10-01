@@ -2,31 +2,12 @@ pipeline {
     agent any 
 
     stages {
-
-        stage('Build') {
+        stage('Greeting') {
             steps {
-                // Example build step (e.g., a shell command)
-                echo 'Building the project...'
-                // Add your build commands here
-                sh 'make build'  // Replace this with your build command
-            }
-        }
-
-        stage('Test') {
-            steps {
-                // Example test step
-                echo 'Running tests...'
-                // Add your test commands here
-                sh 'make test'  // Replace this with your test command
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                // Example deployment step
-                echo 'Deploying the project...'
-                // Add your deployment commands here
-                sh 'make deploy'  // Replace this with your deployment command
+                script {
+                    // Print "Hello, World!" to the console
+                    echo 'Hello, World!'
+                }
             }
         }
     }
