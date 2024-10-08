@@ -4,7 +4,6 @@ pipeline {
    environment {
         CLUSTER_NAME = "amine-cluster"
         REGION = "us-east-1"
-        NAMESPACE = "python-app"
     }
     
     stages {
