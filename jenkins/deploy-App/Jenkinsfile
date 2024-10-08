@@ -1,30 +1,30 @@
 pipeline {
     agent any
-    
-   environment {
+
+    environment {
         CLUSTER_NAME = "amine-cluster"
         REGION = "us-east-1"
     }
-    
+
     stages {
         stage('Deploy App') {
             steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "awscredss",
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                withCredentials([[ 
+                    $class: 'AmazonWebServicesCredentialsBinding', 
+                    credentialsId: "awscredss", 
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
                     script {
-                        // Configure kubectl
+                        // Configure kubectl to use the EKS cluster
                         sh "aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}"
                         
-                        // Apply the Kubernetes configurations
+                        // Apply Kubernetes configurations
                         sh """
                         cd minikube
-                         kubectl apply -f deployment.yml 
-                         kubectl apply -f service.yml 
-                         kubectl get services
+                        kubectl apply -f deployment.yml
+                        kubectl apply -f service.yml
+                        kubectl get services
                         """
                         
                         // Wait for resources to be applied
@@ -33,11 +33,12 @@ pipeline {
                 }
             }
         }
-    
+    }
+
     post {
         always {
             echo 'Cleaning up...'
-            // Add any cleanup steps if necessary
+            // Optional cleanup steps if needed
         }
     }
 }
