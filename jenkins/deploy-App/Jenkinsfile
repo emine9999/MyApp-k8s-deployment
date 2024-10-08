@@ -24,6 +24,7 @@ pipeline {
                         cd minikube
                          kubectl apply -f deployment.yml 
                          kubectl apply -f service.yml 
+                         kubectl get services
                         """
                         
                         // Wait for resources to be applied
@@ -32,42 +33,6 @@ pipeline {
                 }
             }
         }
-        
-        stage('Get App URL') {
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: "awscredss",
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    script {
-                        // Wait for the LoadBalancer to get an external IP
-                        def lbDnsName = ""
-                        def maxAttempts = 30
-                        def attempt = 1
-                        while (lbDnsName == "" && attempt <= maxAttempts) {
-                            echo "Attempt ${attempt} to get Load Balancer DNS name..."
-                            lbDnsName = sh(script: """
-                                aws elbv2 describe-load-balancers --region ${REGION} | \
-                                grep -A 5 morocco-service | grep DNSName | awk -F'"' '{print \$4}'
-                            """, returnStdout: true).trim()
-                            if (lbDnsName == "") {
-                                sleep(time: 10, unit: "SECONDS")
-                                attempt++
-                            }
-                        }
-                        
-                        if (lbDnsName != "") {
-                            echo "The application is accessible at: http://${lbDnsName}"
-                        } else {
-                            error "Failed to retrieve Load Balancer DNS name after ${maxAttempts} attempts"
-                        }
-                    }
-                }
-            }
-        }
-    }
     
     post {
         always {
