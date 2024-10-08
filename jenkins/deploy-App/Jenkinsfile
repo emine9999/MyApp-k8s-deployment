@@ -1,76 +1,79 @@
 pipeline {
     agent any
-
-    parameters {
-        string(name: 'DEPLOYMENT', defaultValue: 'default-deployment', description: 'Name of the deployment to apply')
+    
+   environment {
+        CLUSTER_NAME = "amine-cluster"
+        REGION = "us-east-1"
+        NAMESPACE = "python-app"
     }
-
-    environment {
-        SONARQUBE_URL = "http://128.110.218.109:9000"
-        SONARQUBE_TOKEN = credentials('sonar_token') // Use a credentials ID instead of hardcoding the token
-    }
-
+    
     stages {
-        stage('Debug') {
+        stage('Deploy App') {
             steps {
-                script {
-                    echo "SONARQUBE_URL: ${SONARQUBE_URL}"
-                    echo "Java version:"
-                    sh 'java -version'
-                    sh "curl -X GET ${SONARQUBE_URL}/api/system/status"
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    // Perform SonarQube analysis
-                    def scannerHome = tool 'sonar-scanner' // Make sure the sonar-scanner tool is installed in Jenkins
-                    withSonarQubeEnv('sonar-server') { // Ensure this matches your SonarQube server configuration in Jenkins
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "awscredss",
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    script {
+                        // Configure kubectl
+                        sh "aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}"
+                        
+                        // Apply the Kubernetes configurations
                         sh """
-                        ${scannerHome}/bin/sonar-scanner \
-                          -Dsonar.projectKey=test-app \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=${SONARQUBE_URL} \
-                          -Dsonar.token=${SONARQUBE_TOKEN} \
-                          -Dsonar.inclusions=**/*.html,**/*.css
+                        cd minikube
+                        kubectl apply -f kubernetes/deployment.yml 
+                        kubectl apply -f kubernetes/service.yml 
                         """
+                        
+                        // Wait for resources to be applied
+                        sleep(time: 30, unit: "SECONDS")
                     }
                 }
             }
         }
-
-        stage('Deploy App') {
-            steps {
-                script {
-                    // Apply the Kubernetes configurations
-                    sh """
-                    cd minikube
-                    kubectl apply -f deployment.yml 
-                    kubectl apply -f service.yml 
-                    """
-                    sleep(time: 10, unit: "SECONDS")  // Wait for resources to be applied
-                }
-            }
-        }
-
+        
         stage('Get App URL') {
             steps {
-                script {
-                    // Get the service URL from Minikube
-                    def serviceURL = sh(script: 'minikube service morocco-service --url', returnStdout: true).trim()
-
-                    // Print the service URL
-                    echo "The application is accessible at: ${serviceURL}"
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: "awscredss",
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    script {
+                        // Wait for the LoadBalancer to get an external IP
+                        def lbDnsName = ""
+                        def maxAttempts = 30
+                        def attempt = 1
+                        while (lbDnsName == "" && attempt <= maxAttempts) {
+                            echo "Attempt ${attempt} to get Load Balancer DNS name..."
+                            lbDnsName = sh(script: """
+                                aws elbv2 describe-load-balancers --region ${REGION} | \
+                                grep -A 5 morocco-service | grep DNSName | awk -F'"' '{print \$4}'
+                            """, returnStdout: true).trim()
+                            if (lbDnsName == "") {
+                                sleep(time: 10, unit: "SECONDS")
+                                attempt++
+                            }
+                        }
+                        
+                        if (lbDnsName != "") {
+                            echo "The application is accessible at: http://${lbDnsName}"
+                        } else {
+                            error "Failed to retrieve Load Balancer DNS name after ${maxAttempts} attempts"
+                        }
+                    }
                 }
             }
         }
     }
-
+    
     post {
         always {
             echo 'Cleaning up...'
+            // Add any cleanup steps if necessary
         }
     }
 }
