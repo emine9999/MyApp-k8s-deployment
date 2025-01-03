@@ -1,29 +1,132 @@
 pipeline {
-   agent any
-   environment {
-       CLUSTER_NAME = "elhasbi-cluster"
-       REGION = "us-east-1"
-   }
-   stages {
-       stage('Delete EKS Resources') {
-           steps {
-               withCredentials([[
-                   $class: 'AmazonWebServicesCredentialsBinding',
-                   credentialsId: "awscredss",
-                   accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                   secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-               ]]) {
-                   sh '''
-                       # Delete k8s resources
-                       aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}
-                       kubectl delete -f minikube/deployment.yml || true
-                       kubectl delete -f minikube/service.yml || true
-                       
-                       # Delete cluster
-                       eksctl delete cluster --name ${CLUSTER_NAME} --region ${REGION}
-                   '''
-               }
-           }
-       }
-   }
+    agent any
+    
+    environment {
+        SONARQUBE_URL = "http://elhasbi-alb-804856436.us-east-1.elb.amazonaws.com/sonarqube"
+        SONARQUBE_TOKEN = credentials('sonarqube-token')
+        CLUSTER_NAME = "elhasbi-cluster"
+        REGION = "us-east-1"
+    }
+    
+    stages {
+        stage('Code Analysis') {
+            stages {
+                stage('Debug SonarQube') {
+                    steps {
+                        script {
+                            echo "SONARQUBE_URL: ${SONARQUBE_URL}"
+                            echo "Java version:"
+                            sh 'java -version'
+                            sh "curl -X GET ${SONARQUBE_URL}/api/system/status"
+                        }
+                    }
+                }
+                
+                stage('SonarQube Analysis') {
+                    steps {
+                        script {
+                            def scannerHome = tool 'sonar-scanner'
+                            withSonarQubeEnv('sonar-server') {
+                                sh """
+                                    ${scannerHome}/bin/sonar-scanner \\
+                                        -Dsonar.projectKey=pfa-app \\
+                                        -Dsonar.sources=. \\
+                                        -Dsonar.host.url=${SONARQUBE_URL} \\
+                                        -Dsonar.login=${SONARQUBE_TOKEN}
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('EKS Management') {
+            stages {
+                stage('Create EKS Cluster') {
+                    steps {
+                        withCredentials([[
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            credentialsId: "awscredss",
+                            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                        ]]) {
+                            sh '''
+                                eksctl create cluster \\
+                                --name ${CLUSTER_NAME} \\
+                                --region ${REGION} \\
+                                --node-type t2.micro \\
+                                --nodes 2 \\
+                                --nodes-min 1 \\
+                                --nodes-max 2 \\
+                                --managed
+                            '''
+                        }
+                    }
+                }
+
+                stage('Deploy Application') {
+                    steps {
+                        withCredentials([[
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            credentialsId: "awscredss",
+                            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                        ]]) {
+                            script {
+                                sh "aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}"
+                                
+                                sh """
+                                    cd minikube
+                                    kubectl apply -f deployment.yml
+                                    kubectl apply -f service.yml
+                                    kubectl get services
+                                """
+                                
+                                sleep(time: 30, unit: "SECONDS")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Cleanup') {
+            stages {
+                stage('Delete EKS Resources') {
+                    steps {
+                        withCredentials([[
+                            $class: 'AmazonWebServicesCredentialsBinding',
+                            credentialsId: "awscredss",
+                            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                        ]]) {
+                            sh '''
+                                # Delete k8s resources
+                                aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}
+                                kubectl delete -f minikube/deployment.yml || true
+                                kubectl delete -f minikube/service.yml || true
+                                
+                                # Delete cluster
+                                eksctl delete cluster --name ${CLUSTER_NAME} --region ${REGION}
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline finished. Cleaning up...'
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed! Check logs for details.'
+        }
+    }
 }
