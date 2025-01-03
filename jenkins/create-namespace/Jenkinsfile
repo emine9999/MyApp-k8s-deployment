@@ -1,23 +1,29 @@
 pipeline {
-    agent any 
-
-    stages {
-        stage('Greeting') {
-            steps {
-                script {
-                    // Print "Hello, World!" to the console
-                    echo 'Hello, World!'
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
-        }
-    }
+   agent any
+   environment {
+       CLUSTER_NAME = "elhasbi-cluster"
+       REGION = "us-east-1"
+   }
+   stages {
+       stage('Delete EKS Resources') {
+           steps {
+               withCredentials([[
+                   $class: 'AmazonWebServicesCredentialsBinding',
+                   credentialsId: "awscredss",
+                   accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                   secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+               ]]) {
+                   sh '''
+                       # Delete k8s resources
+                       aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}
+                       kubectl delete -f minikube/deployment.yml || true
+                       kubectl delete -f minikube/service.yml || true
+                       
+                       # Delete cluster
+                       eksctl delete cluster --name ${CLUSTER_NAME} --region ${REGION}
+                   '''
+               }
+           }
+       }
+   }
 }
