@@ -1,44 +1,58 @@
 pipeline {
-    agent any
-
-    environment {
-        CLUSTER_NAME = "amine-cluster"
-        REGION = "us-east-1"
-    }
-
-    stages {
-        stage('Deploy App') {
-            steps {
-                withCredentials([[ 
-                    $class: 'AmazonWebServicesCredentialsBinding', 
-                    credentialsId: "awscredss", 
-                    accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                ]]) {
-                    script {
-                        // Configure kubectl to use the EKS cluster
-                        sh "aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}"
-                        
-                        // Apply Kubernetes configurations
-                        sh """
-                        cd minikube
-                        kubectl apply -f deployment.yml
-                        kubectl apply -f service.yml
-                        kubectl get services
-                        """
-                        
-                        // Wait for resources to be applied
-                        sleep(time: 30, unit: "SECONDS")
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo 'Cleaning up...'
-            // Optional cleanup steps if needed
-        }
-    }
+   agent any
+   environment {
+       CLUSTER_NAME = "elhasbi-cluster"
+       REGION = "us-east-1"
+   }
+   stages {
+       stage('Create EKS Cluster') {
+           steps {
+               withCredentials([[ 
+                   $class: 'AmazonWebServicesCredentialsBinding',
+                   credentialsId: "awscredss", 
+                   accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                   secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+               ]]) {
+                   sh '''
+                       eksctl create cluster \
+                       --name ${CLUSTER_NAME} \
+                       --region ${REGION} \
+                       --node-type t2.micro \
+                       --nodes 2 \
+                       --nodes-min 1 \
+                       --nodes-max 2 \
+                       --managed
+                   '''
+               }
+           }
+       }
+       stage('Deploy App') {
+           steps {
+               withCredentials([[ 
+                   $class: 'AmazonWebServicesCredentialsBinding', 
+                   credentialsId: "awscredss", 
+                   accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
+                   secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+               ]]) {
+                   script {
+                       sh "aws eks update-kubeconfig --name ${CLUSTER_NAME} --region ${REGION}"
+                       
+                       sh """
+                       cd minikube
+                       kubectl apply -f deployment.yml
+                       kubectl apply -f service.yml
+                       kubectl get services
+                       """
+                       
+                       sleep(time: 30, unit: "SECONDS")
+                   }
+               }
+           }
+       }
+   }
+   post {
+       always {
+           echo 'Cleaning up...'
+       }
+   }
 }
